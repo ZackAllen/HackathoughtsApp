@@ -34,6 +34,8 @@ namespace HackathoughtsApp
         private FeatureLayer _water;
         private FeatureLayer _parks;
 
+        private List<Polygon> _parkPolygons;
+
         private DateTime _lostTime;
         private DateTime _currentTime;
         private double _radius;
@@ -46,8 +48,9 @@ namespace HackathoughtsApp
 
         public override void ViewDidLoad()
         {
+
             _lostTime = DateTime.Now;
-            _currentTime = DateTime.Now.AddHours(20.5);
+            _currentTime = DateTime.Now.AddHours(0.5);
 
             SetRadius();
 
@@ -61,6 +64,11 @@ namespace HackathoughtsApp
             {
                 Map = _mapViewModel.Map // Use the map from the view-model
             };
+            // Create a new ArcGISVectorTiledLayer with the URI Selected by the user
+            ArcGISVectorTiledLayer vectorTiledLayer = new ArcGISVectorTiledLayer(new Uri("https://ess.maps.arcgis.com/home/item.html?id=08155fea456d47279946f95134609d05"));
+
+            // Create new Map with basemap 
+            _mapView.Map = new Map(new Basemap(vectorTiledLayer));
 
             _mapView.GeoViewTapped += MyMapView_GeoViewTapped;
 
@@ -103,8 +111,6 @@ namespace HackathoughtsApp
             _mapView.Map.OperationalLayers.Add(_parks);
 
 
-
-
             _water.LoadAsync();
             CenterView();
             // Add the MapView to the Subview
@@ -115,8 +121,32 @@ namespace HackathoughtsApp
         {
             await _redlandsBoundary.LoadAsync();
             await _mapView.SetViewpointAsync(new Viewpoint(_redlandsBoundary.FullExtent.Extent));
-           // await _water.LoadAsync();
-            
+            // await _water.LoadAsync();
+
+            await _parks.LoadAsync();
+            // Holds locations of hospitals around San Diego.
+
+            _parkPolygons =  new List<Polygon>();
+            // Create query parameters to select all features.
+            QueryParameters queryParams = new QueryParameters()
+            {
+                WhereClause = "1=1"
+            };
+
+            FeatureQueryResult redlandsResult = await _redlandsBoundary.FeatureTable.QueryFeaturesAsync(queryParams);
+            List<Polygon> redlandsBound = redlandsResult.ToList().Select(feature => (Polygon)feature.Geometry).ToList();
+            //GeometryEngine.Union()
+            await _mapView.SetViewpointAsync(new Viewpoint(GeometryEngine.Union(redlandsBound).Extent));
+
+            // Query all features in the facility table.
+            FeatureQueryResult facilityResult = await _parks.FeatureTable.QueryFeaturesAsync(queryParams);
+
+            // Add all of the query results to facilities as new Facility objects.
+            _parkPolygons.AddRange(facilityResult.ToList().Select(feature => (Polygon)feature.Geometry));
+
+            Console.WriteLine(_parkPolygons.Count);
+            //await _mapView.SetViewpointAsync(new Viewpoint(_parkPolygons[0].Extent));
+
         }
 
         private void SetRadius()
