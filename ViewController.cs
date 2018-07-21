@@ -30,6 +30,10 @@ namespace HackathoughtsApp
         private GraphicsOverlay _interestOverlay;
         private GraphicsOverlay _lostOverlay;
 
+        private FeatureLayer _redlandsBoundary;
+        private FeatureLayer _water;
+        private FeatureLayer _parks;
+
         public ViewController(IntPtr handle) : base(handle)
         {
             // Listen for changes on the view model
@@ -66,17 +70,37 @@ namespace HackathoughtsApp
 
             // Create URI to the used feature service.
             Uri serviceUri = new Uri("https://services.arcgis.com/FLM8UAw9y5MmuVTV/ArcGIS/rest/services/CityLimits_Redlands/FeatureServer/0");
-
             // Create new FeatureLayer by URL.
-            FeatureLayer redlandsBoundary = new FeatureLayer(serviceUri);
+            _redlandsBoundary = new FeatureLayer(serviceUri);
+
+
+            // Create URI to the used feature service.
+            Uri waterUri = new Uri("https://services.arcgis.com/Wl7Y1m92PbjtJs5n/arcgis/rest/services/Hackathoughts/FeatureServer/1");
+
+            _water = new FeatureLayer(waterUri);
+            _water.Renderer = new SimpleRenderer(new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, Color.Blue, new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Black, 2.0)));
+            //new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, Color.Blue, new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Black, 5.0) );
+
+            Uri parkUri = new Uri("https://services.arcgis.com/FLM8UAw9y5MmuVTV/ArcGIS/rest/services/Redlands_Park_Boundaries/FeatureServer/0");
+            
+            _parks = new FeatureLayer(parkUri);
 
             // Add layer to the map.
-            _mapView.Map.OperationalLayers.Add(redlandsBoundary);
-
-            
-
+            _mapView.Map.OperationalLayers.Add(_redlandsBoundary);
+            _mapView.Map.OperationalLayers.Add(_water);
+            _mapView.Map.OperationalLayers.Add(_parks);
+            _water.LoadAsync();
+            CenterView();
             // Add the MapView to the Subview
             View.AddSubview(_mapView);
+        }
+
+        private async void CenterView()
+        {
+            await _redlandsBoundary.LoadAsync();
+            await _mapView.SetViewpointAsync(new Viewpoint(_redlandsBoundary.FullExtent.Extent));
+           // await _water.LoadAsync();
+            
         }
 
         public override void ViewDidLayoutSubviews()
