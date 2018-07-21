@@ -34,6 +34,10 @@ namespace HackathoughtsApp
         private FeatureLayer _water;
         private FeatureLayer _parks;
 
+        private DateTime _lostTime;
+        private DateTime _currentTime;
+        private double _radius;
+
         public ViewController(IntPtr handle) : base(handle)
         {
             // Listen for changes on the view model
@@ -42,6 +46,14 @@ namespace HackathoughtsApp
 
         public override void ViewDidLoad()
         {
+            _lostTime = DateTime.Now;
+            _currentTime = DateTime.Now.AddHours(20.5);
+
+            SetRadius();
+
+            Console.WriteLine(_radius);
+
+            Console.WriteLine(DateTime.Now.ToString());
             base.ViewDidLoad();
 
             // Create a new map view, set its map, and provide the coordinates for laying it out
@@ -85,10 +97,14 @@ namespace HackathoughtsApp
             
             _parks = new FeatureLayer(parkUri);
 
-            // Add layer to the map.
+            // Add layers to the map.
             _mapView.Map.OperationalLayers.Add(_redlandsBoundary);
             _mapView.Map.OperationalLayers.Add(_water);
             _mapView.Map.OperationalLayers.Add(_parks);
+
+
+
+
             _water.LoadAsync();
             CenterView();
             // Add the MapView to the Subview
@@ -101,6 +117,15 @@ namespace HackathoughtsApp
             await _mapView.SetViewpointAsync(new Viewpoint(_redlandsBoundary.FullExtent.Extent));
            // await _water.LoadAsync();
             
+        }
+
+        private void SetRadius()
+        {
+            _radius = _currentTime.Subtract(_lostTime).TotalHours * 3.0;
+            if (_radius > 20.0)
+            {
+                _radius = 20.0;
+            }
         }
 
         public override void ViewDidLayoutSubviews()
@@ -117,8 +142,12 @@ namespace HackathoughtsApp
             _lostLocation = e.Location;
 
             _lostOverlay.Graphics.Clear();
-            _lostOverlay.Graphics.Add(new Graphic(_lostLocation, new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.X, Color.Blue, 30.0)));
+            //_lostOverlay.Graphics.Add(new Graphic(_lostLocation, new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.X, Color.Blue, 30.0)));
 
+            Geometry bufferGeometryGeodesic = GeometryEngine.BufferGeodetic(_lostLocation, _radius, LinearUnits.Miles, double.NaN, GeodeticCurveType.Geodesic);
+            Graphic geodesicBufferGraphic = new Graphic(bufferGeometryGeodesic, new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Black, 2.0));
+
+            _bufferOverlay.Graphics.Add(geodesicBufferGraphic);
 
         }
 
