@@ -202,7 +202,13 @@ namespace HackathoughtsApp
 
         private void LostPet_Click(object sender, EventArgs e)
         {
-
+            /*
+            UITableViewController directionsTableController = new UITableViewController
+            {
+                TableView = { Source = new DirectionsTableSource(_directionsList) }
+            };
+            NavigationController.PushViewController(directionsTableController, true);
+            */
         }
 
         private void FoundPet_Click(object sender, EventArgs e)
