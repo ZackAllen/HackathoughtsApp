@@ -7,17 +7,22 @@ using Esri.ArcGISRuntime.UI.Controls;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
 using UIKit;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Data.SqlClient;
 using System.IO;
 using System.Reflection;
+using System.Threading.Tasks;
+using CoreGraphics;
+using Esri.ArcGISRuntime.Geometry;
+using Esri.ArcGISRuntime.Mapping;
+using Esri.ArcGISRuntime.Symbology;
+using Esri.ArcGISRuntime.UI;
+using Esri.ArcGISRuntime.UI.Controls;
+using Foundation;
+using UIKit;
 
 namespace HackathoughtsApp
 {
@@ -34,6 +39,8 @@ namespace HackathoughtsApp
         private UIButton _lostPetButton = new UIButton(UIButtonType.Plain);
         private UIButton _foundPetButton = new UIButton(UIButtonType.Plain);
         private UIButton _sightingButton = new UIButton(UIButtonType.Plain);
+
+        private UILabel _speedLabel = new UILabel();
 
         private readonly UISlider _mySlider = new UISlider();
 
@@ -58,6 +65,7 @@ namespace HackathoughtsApp
         private MapPoint _shelter;
 
         private double _dogSpeed = 0.5;
+        private List<Polygon> _buildingGeometry;
 
         public ViewController(IntPtr handle) : base(handle)
         {
@@ -83,21 +91,23 @@ namespace HackathoughtsApp
             _sightingButton.SetTitleColor(UIColor.Blue, UIControlState.Normal);
             _sightingButton.TouchUpInside += FoundPet_ClickAsync;
 
+            _speedLabel.Text = "Dog Speed:";
+
             _mySlider.SetValue((float)0.5, true);
             _mySlider.ValueChanged += MyHeightSlider_ValueChanged;
 
-            View.AddSubviews(_mapView, _toolbar, _foundPetButton, _lostPetButton, _sightingButton, _mySlider);
+            View.AddSubviews(_mapView, _toolbar, _foundPetButton, _lostPetButton, _sightingButton, _mySlider, _speedLabel);
         }
 
         private void MyHeightSlider_ValueChanged(object sender, EventArgs e)
         {
             // Scale the slider value; its default range is 0-10.
-            _dogSpeed= _mySlider.Value;
+            _dogSpeed = _mySlider.Value;
             Console.WriteLine(_dogSpeed.ToString());
             SetRadius();
         }
 
-            private void Initialize()
+        private void Initialize()
         {
             _lostTime = DateTime.Now;
             _currentTime = DateTime.Now.AddHours(0.5);
@@ -128,17 +138,20 @@ namespace HackathoughtsApp
             _lostOverlay = new GraphicsOverlay();
 
             _shelter = new MapPoint(-117.203551, 34.060069, SpatialReferences.Wgs84);
-            var shelterPicture = new PictureMarkerSymbol(new Uri("http://static.arcgis.com/images/Symbols/SafetyHealth/Hospital.png"))
-            { Height=40, Width=40
+            PictureMarkerSymbol shelterPicture = new PictureMarkerSymbol(new Uri("http://static.arcgis.com/images/Symbols/SafetyHealth/Hospital.png"))
+            {
+                Height = 40,
+                Width = 40
             };
 
-            _interestOverlay.Graphics.Add(new Graphic(_shelter, shelterPicture));
+            
 
             _mapView.GraphicsOverlays.Add(_bufferOverlay);
             _mapView.GraphicsOverlays.Add(_barrierOverlay);
             _mapView.GraphicsOverlays.Add(_interestOverlay);
             _mapView.GraphicsOverlays.Add(_lostOverlay);
 
+            _interestOverlay.Graphics.Add(new Graphic(_shelter, new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.Cross, Color.Red, 15)));
             //get redlands boundary
 
             // Create URI to the used feature service.
@@ -154,20 +167,22 @@ namespace HackathoughtsApp
             //new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, Color.Blue, new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Black, 5.0) );
 
             Uri parkUri = new Uri("https://services.arcgis.com/FLM8UAw9y5MmuVTV/ArcGIS/rest/services/Redlands_Park_Boundaries/FeatureServer/0");
-
             _parks = new FeatureLayer(parkUri);
+
+            Uri buildingsUri = new Uri("https://services.arcgis.com/Wl7Y1m92PbjtJs5n/arcgis/rest/services/Hackathoughts2/FeatureServer/1");
+            _buildings = new FeatureLayer(buildingsUri);
 
             // Add layers to the map.
             _mapView.Map.OperationalLayers.Add(_redlandsBoundary);
             _mapView.Map.OperationalLayers.Add(_water);
             _mapView.Map.OperationalLayers.Add(_parks);
-
+            //_mapView.Map.OperationalLayers.Add(_buildings);
 
             _water.LoadAsync();
-            CenterView();
+            AsyncInitProcesses();
         }
 
-        private async void CenterView()
+        private async void AsyncInitProcesses()
         {
             await _redlandsBoundary.LoadAsync();
             await _mapView.SetViewpointAsync(new Viewpoint(_redlandsBoundary.FullExtent.Extent));
@@ -194,13 +209,23 @@ namespace HackathoughtsApp
             // Add all of the query results to facilities as new Facility objects.
             _parkPolygons.AddRange(facilityResult.ToList().Select(feature => (Polygon)feature.Geometry));
 
-            
             //await _mapView.SetViewpointAsync(new Viewpoint(_parkPolygons[0].Extent));
+
+            FeatureQueryResult buildingsResult = await _buildings.FeatureTable.QueryFeaturesAsync(queryParams);
+            _buildingGeometry = buildingsResult.ToList().Select(feature => (Polygon)feature.Geometry).ToList();
+            /*
+            foreach(Polygon building in _buildingGeometry)
+            {
+                Graphic bgraphic = new Graphic(building, new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, Color.Blue, new SimpleLineSymbol(SimpleLineSymbolStyle.Dash, Color.Gray, 3.0)));
+                _barrierOverlay.Graphics.Add(bgraphic);
+            }
+            */
+
         }
 
         private void SetRadius()
         {
-            _radius = _currentTime.Subtract(_lostTime).TotalHours * 6.0 *_dogSpeed;
+            _radius = _currentTime.Subtract(_lostTime).TotalHours * 3.0 * _dogSpeed;
             Console.WriteLine(_radius);
             if (_radius > 20.0)
             {
@@ -222,13 +247,19 @@ namespace HackathoughtsApp
 
             _lostPetButton.Frame = new CoreGraphics.CGRect(0, yPageOffset, View.Bounds.Width / 3, 40);
             _foundPetButton.Frame = new CoreGraphics.CGRect(View.Bounds.Width / 3, yPageOffset, View.Bounds.Width / 3, 40);
-            _sightingButton.Frame = new CoreGraphics.CGRect((View.Bounds.Width / 3)*2, yPageOffset, View.Bounds.Width / 3, 40);
-            _mySlider.Frame = new CoreGraphics.CGRect(0, yPageOffset+40, View.Bounds.Width, 40);
+            _sightingButton.Frame = new CoreGraphics.CGRect((View.Bounds.Width / 3) * 2, yPageOffset, View.Bounds.Width / 3, 40);
+
+            _speedLabel.Frame = new CoreGraphics.CGRect(0, yPageOffset + 40, View.Bounds.Width/3, 40);
+            _mySlider.Frame = new CoreGraphics.CGRect(View.Bounds.Width / 3, yPageOffset + 40, (View.Bounds.Width/3)*2, 40);
         }
+
         private void Sighting_Click(object sender, EventArgs e)
         {
-            Console.WriteLine("YEET");
+            _lostOverlay.Graphics.Clear();
+            _bufferOverlay.Graphics.Clear();
+            _bufferOverlay.Graphics.Add(new Graphic(_selectedLocation, new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.Diamond, Color.Orange, 20.0)));
         }
+
         private async void LostPet_ClickAsync(object sender, EventArgs e)
         {
             if (_selectedLocation == null)
@@ -239,33 +270,39 @@ namespace HackathoughtsApp
             _lostLocation = _selectedLocation;
 
             _lostOverlay.Graphics.Clear();
-            //_lostOverlay.Graphics.Add(new Graphic(_lostLocation, new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.X, Color.Blue, 30.0)));
-
+            _bufferOverlay.Graphics.Clear();
+            
+            
             Geometry bufferGeometryGeodesic = GeometryEngine.BufferGeodetic(_lostLocation, _radius, LinearUnits.Miles, double.NaN, GeodeticCurveType.Geodesic);
-            Graphic geodesicBufferGraphic = new Graphic(bufferGeometryGeodesic, new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Black, 2.0));
-
+            /*
+            foreach (Polygon building in _buildingGeometry)
+            {
+                bufferGeometryGeodesic = GeometryEngine.Cut(bufferGeometryGeodesic, building.ToPolyline())[0];
+            }
+            */
+            Color customColor = Color.FromArgb(120, Color.Orange);
+            Graphic geodesicBufferGraphic = new Graphic(bufferGeometryGeodesic, new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, customColor, new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Black, 2.0)));
+            Console.WriteLine(bufferGeometryGeodesic.ToJson());
             _bufferOverlay.Graphics.Add(geodesicBufferGraphic);
 
             await _mapView.SetViewpointAsync(new Viewpoint(geodesicBufferGraphic.Geometry.Extent));
-            /*
-            UITableViewController directionsTableController = new UITableViewController
-            {
-                TableView = { Source = new DirectionsTableSource(_directionsList) }
-            };
-            NavigationController.PushViewController(directionsTableController, true);
-            */
+
         }
 
         private async void FoundPet_ClickAsync(object sender, EventArgs e)
         {
-            await _mapView.SetViewpointAsync(new Viewpoint(_shelter.Extent));
+            _lostOverlay.Graphics.Clear();
+            _bufferOverlay.Graphics.Clear();
+            _bufferOverlay.Graphics.Add(new Graphic(_selectedLocation, new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.Diamond, Color.Green, 20.0)));
+            //await _mapView.SetViewpointAsync(new Viewpoint(_shelter.Extent));
         }
 
         private void MyMapView_GeoViewTapped(object sender, GeoViewInputEventArgs e)
         {
             _selectedLocation = e.Location;
             _bufferOverlay.Graphics.Clear();
-            _bufferOverlay.Graphics.Add(new Graphic(_selectedLocation, new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.X, Color.Red, 15.0)));
+            _bufferOverlay.Graphics.Add(new Graphic(_selectedLocation, new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.X, Color.Blue, 15.0)));
+            //_bufferOverlay.Graphics.Add(new Graphic(_selectedLocation, new PictureMarkerSymbol(new Uri("http://static.arcgis.com/images/Symbols/Shapes/RedPin1LargeB.png"))));
         }
 
         private void MapViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -276,13 +313,14 @@ namespace HackathoughtsApp
         }
     }
 
-    class WheresFidoDB
+    internal class WheresFidoDB
     {
         private string connUrl = "Data Source=MININT-BTM4NR3.esri.com;Initial Catalog=WheresFido;Integrated Security=True";
 
         /**
          * ONLY CALLED WITHIN THIS CLASS
          * */
+
         private SqlConnection getConnection()
         {
             return new SqlConnection(connUrl);
@@ -294,6 +332,7 @@ namespace HackathoughtsApp
          * lat and lon: get the user inputted home address and get the lat and long values before calling this
          * notifs: user should either turn notifications on or off when they register
          * */
+
         public Boolean addNewUser(string email, string pass, double lat, double lon, Boolean notifs)
         {
             try
@@ -534,6 +573,5 @@ namespace HackathoughtsApp
                 return false;
             }
         }
-
     }
 }
