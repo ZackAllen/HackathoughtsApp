@@ -33,6 +33,9 @@ namespace HackathoughtsApp
 
         private UIButton _lostPetButton = new UIButton(UIButtonType.Plain);
         private UIButton _foundPetButton = new UIButton(UIButtonType.Plain);
+        private UIButton _sightingButton = new UIButton(UIButtonType.Plain);
+
+        private readonly UISlider _mySlider = new UISlider();
 
         private MapPoint _lostLocation;
         private MapPoint _selectedLocation;
@@ -44,6 +47,7 @@ namespace HackathoughtsApp
         private FeatureLayer _redlandsBoundary;
         private FeatureLayer _water;
         private FeatureLayer _parks;
+        private FeatureLayer _buildings;
 
         private List<Polygon> _parkPolygons;
 
@@ -52,6 +56,8 @@ namespace HackathoughtsApp
         private double _radius;
 
         private MapPoint _shelter;
+
+        private double _dogSpeed = 0.5;
 
         public ViewController(IntPtr handle) : base(handle)
         {
@@ -69,14 +75,29 @@ namespace HackathoughtsApp
             _lostPetButton.SetTitleColor(UIColor.Blue, UIControlState.Normal);
             _lostPetButton.TouchUpInside += LostPet_ClickAsync;
 
-            _foundPetButton.SetTitle("Found Pet", UIControlState.Normal);
+            _foundPetButton.SetTitle("Sighting", UIControlState.Normal);
             _foundPetButton.SetTitleColor(UIColor.Blue, UIControlState.Normal);
-            _foundPetButton.TouchUpInside += FoundPet_ClickAsync;
+            _foundPetButton.TouchUpInside += Sighting_Click;
 
-            View.AddSubviews(_mapView, _toolbar, _foundPetButton, _lostPetButton);
+            _sightingButton.SetTitle("Found Pet", UIControlState.Normal);
+            _sightingButton.SetTitleColor(UIColor.Blue, UIControlState.Normal);
+            _sightingButton.TouchUpInside += FoundPet_ClickAsync;
+
+            _mySlider.SetValue((float)0.5, true);
+            _mySlider.ValueChanged += MyHeightSlider_ValueChanged;
+
+            View.AddSubviews(_mapView, _toolbar, _foundPetButton, _lostPetButton, _sightingButton, _mySlider);
         }
 
-        private void Initialize()
+        private void MyHeightSlider_ValueChanged(object sender, EventArgs e)
+        {
+            // Scale the slider value; its default range is 0-10.
+            _dogSpeed= _mySlider.Value;
+            Console.WriteLine(_dogSpeed.ToString());
+            SetRadius();
+        }
+
+            private void Initialize()
         {
             _lostTime = DateTime.Now;
             _currentTime = DateTime.Now.AddHours(0.5);
@@ -142,7 +163,6 @@ namespace HackathoughtsApp
             _mapView.Map.OperationalLayers.Add(_parks);
 
 
-
             _water.LoadAsync();
             CenterView();
         }
@@ -180,7 +200,8 @@ namespace HackathoughtsApp
 
         private void SetRadius()
         {
-            _radius = _currentTime.Subtract(_lostTime).TotalHours * 3.0;
+            _radius = _currentTime.Subtract(_lostTime).TotalHours * 6.0 *_dogSpeed;
+            Console.WriteLine(_radius);
             if (_radius > 20.0)
             {
                 _radius = 20.0;
@@ -197,12 +218,17 @@ namespace HackathoughtsApp
             _mapView.Frame = new CoreGraphics.CGRect(0, 0, View.Bounds.Width, View.Bounds.Height);
 
             // Setup the visual frame for the Toolbar
-            _toolbar.Frame = new CoreGraphics.CGRect(0, yPageOffset, View.Bounds.Width, 40);
+            _toolbar.Frame = new CoreGraphics.CGRect(0, yPageOffset, View.Bounds.Width, 80);
 
-            _lostPetButton.Frame = new CoreGraphics.CGRect(0, yPageOffset, View.Bounds.Width / 2, 40);
-            _foundPetButton.Frame = new CoreGraphics.CGRect(View.Bounds.Width / 2, yPageOffset, View.Bounds.Width / 2, 40);
+            _lostPetButton.Frame = new CoreGraphics.CGRect(0, yPageOffset, View.Bounds.Width / 3, 40);
+            _foundPetButton.Frame = new CoreGraphics.CGRect(View.Bounds.Width / 3, yPageOffset, View.Bounds.Width / 3, 40);
+            _sightingButton.Frame = new CoreGraphics.CGRect((View.Bounds.Width / 3)*2, yPageOffset, View.Bounds.Width / 3, 40);
+            _mySlider.Frame = new CoreGraphics.CGRect(0, yPageOffset+40, View.Bounds.Width, 40);
         }
-
+        private void Sighting_Click(object sender, EventArgs e)
+        {
+            Console.WriteLine("YEET");
+        }
         private async void LostPet_ClickAsync(object sender, EventArgs e)
         {
             if (_selectedLocation == null)
