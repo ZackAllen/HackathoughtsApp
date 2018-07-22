@@ -17,6 +17,7 @@ using Esri.ArcGISRuntime.Geometry;
 using Esri.ArcGISRuntime.UI.Controls;
 using UIKit;
 using System.Drawing;
+using CoreGraphics;
 
 namespace HackathoughtsApp
 {
@@ -24,6 +25,13 @@ namespace HackathoughtsApp
     {
         MapViewModel _mapViewModel = new MapViewModel();
         MapView _mapView;
+
+        private UIButton _bufferButton = new UIButton();
+        private readonly UIToolbar _toolbar = new UIToolbar();
+
+        private UIButton _addFacilitiesButton = new UIButton(UIButtonType.Plain);
+        private UIButton _addBarrierButton = new UIButton(UIButtonType.Plain);
+
         private MapPoint _lostLocation;
         private GraphicsOverlay _bufferOverlay;
         private GraphicsOverlay _barrierOverlay;
@@ -48,7 +56,25 @@ namespace HackathoughtsApp
 
         public override void ViewDidLoad()
         {
+            Initialize();
+            base.ViewDidLoad();
 
+            // Add all of the buttons and link their click methods.
+            _addFacilitiesButton.SetTitle("Facilities", UIControlState.Normal);
+            _addFacilitiesButton.SetTitleColor(UIColor.Blue, UIControlState.Normal);
+            //_addFacilitiesButton.TouchUpInside += PlaceFacilites_Click;
+
+            _addBarrierButton.SetTitle("Barrier", UIControlState.Normal);
+            _addBarrierButton.SetTitleColor(UIColor.Blue, UIControlState.Normal);
+            //_addBarrierButton.TouchUpInside += DrawBarrier_Click;
+
+            View.AddSubviews(_mapView, _toolbar, _addBarrierButton, _addFacilitiesButton );
+            
+            
+        }
+
+        private void Initialize()
+        {
             _lostTime = DateTime.Now;
             _currentTime = DateTime.Now.AddHours(0.5);
 
@@ -57,7 +83,7 @@ namespace HackathoughtsApp
             Console.WriteLine(_radius);
 
             Console.WriteLine(DateTime.Now.ToString());
-            base.ViewDidLoad();
+            
 
             // Create a new map view, set its map, and provide the coordinates for laying it out
             _mapView = new MapView()
@@ -102,7 +128,7 @@ namespace HackathoughtsApp
             //new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, Color.Blue, new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Black, 5.0) );
 
             Uri parkUri = new Uri("https://services.arcgis.com/FLM8UAw9y5MmuVTV/ArcGIS/rest/services/Redlands_Park_Boundaries/FeatureServer/0");
-            
+
             _parks = new FeatureLayer(parkUri);
 
             // Add layers to the map.
@@ -113,8 +139,7 @@ namespace HackathoughtsApp
 
             _water.LoadAsync();
             CenterView();
-            // Add the MapView to the Subview
-            View.AddSubview(_mapView);
+            
         }
 
         private async void CenterView()
@@ -160,10 +185,19 @@ namespace HackathoughtsApp
 
         public override void ViewDidLayoutSubviews()
         {
-            // Fill the screen with the map
+            base.ViewDidLayoutSubviews();
+
+            int yPageOffset = 60;
+
+            // Setup the visual frame for the MapView
             _mapView.Frame = new CoreGraphics.CGRect(0, 0, View.Bounds.Width, View.Bounds.Height);
 
-            base.ViewDidLayoutSubviews();
+            // Setup the visual frame for the Toolbar
+            _toolbar.Frame = new CoreGraphics.CGRect(0, yPageOffset, View.Bounds.Width, 80);
+
+            _addFacilitiesButton.Frame = new CoreGraphics.CGRect(0, yPageOffset, View.Bounds.Width / 2, 40);
+            _addBarrierButton.Frame = new CoreGraphics.CGRect(View.Bounds.Width / 2, yPageOffset, View.Bounds.Width / 2, 40);
+
         }
 
         private async void MyMapView_GeoViewTapped(object sender, GeoViewInputEventArgs e)
