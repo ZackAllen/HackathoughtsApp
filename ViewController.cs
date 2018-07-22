@@ -42,6 +42,8 @@ namespace HackathoughtsApp
 
         private UILabel _speedLabel = new UILabel();
 
+        private UILabel _titleLabel = new UILabel();
+
         private readonly UISlider _mySlider = new UISlider();
 
         private MapPoint _lostLocation;
@@ -92,11 +94,14 @@ namespace HackathoughtsApp
             _sightingButton.TouchUpInside += FoundPet_ClickAsync;
 
             _speedLabel.Text = "Dog Speed:";
+            _speedLabel.TextAlignment = UITextAlignment.Center;
+            _titleLabel.Text = "Wheres Fido?";
+            _titleLabel.TextAlignment = UITextAlignment.Center;
 
             _mySlider.SetValue((float)0.5, true);
             _mySlider.ValueChanged += MyHeightSlider_ValueChanged;
 
-            View.AddSubviews(_mapView, _toolbar, _foundPetButton, _lostPetButton, _sightingButton, _mySlider, _speedLabel);
+            View.AddSubviews(_mapView, _toolbar, _foundPetButton, _lostPetButton, _sightingButton, _mySlider, _speedLabel, _titleLabel);
         }
 
         private void MyHeightSlider_ValueChanged(object sender, EventArgs e)
@@ -144,8 +149,6 @@ namespace HackathoughtsApp
                 Width = 40
             };
 
-            
-
             _mapView.GraphicsOverlays.Add(_bufferOverlay);
             _mapView.GraphicsOverlays.Add(_barrierOverlay);
             _mapView.GraphicsOverlays.Add(_interestOverlay);
@@ -176,7 +179,7 @@ namespace HackathoughtsApp
             _mapView.Map.OperationalLayers.Add(_redlandsBoundary);
             _mapView.Map.OperationalLayers.Add(_water);
             _mapView.Map.OperationalLayers.Add(_parks);
-            //_mapView.Map.OperationalLayers.Add(_buildings);
+            _mapView.Map.OperationalLayers.Add(_buildings);
 
             _water.LoadAsync();
             AsyncInitProcesses();
@@ -243,21 +246,30 @@ namespace HackathoughtsApp
             _mapView.Frame = new CoreGraphics.CGRect(0, 0, View.Bounds.Width, View.Bounds.Height);
 
             // Setup the visual frame for the Toolbar
-            _toolbar.Frame = new CoreGraphics.CGRect(0, yPageOffset, View.Bounds.Width, 80);
+            _toolbar.Frame = new CoreGraphics.CGRect(0, yPageOffset, View.Bounds.Width, 120);
 
-            _lostPetButton.Frame = new CoreGraphics.CGRect(0, yPageOffset, View.Bounds.Width / 3, 40);
-            _foundPetButton.Frame = new CoreGraphics.CGRect(View.Bounds.Width / 3, yPageOffset, View.Bounds.Width / 3, 40);
-            _sightingButton.Frame = new CoreGraphics.CGRect((View.Bounds.Width / 3) * 2, yPageOffset, View.Bounds.Width / 3, 40);
+            _titleLabel.Frame = new CoreGraphics.CGRect(0, yPageOffset, View.Bounds.Width, 40);
 
-            _speedLabel.Frame = new CoreGraphics.CGRect(0, yPageOffset + 40, View.Bounds.Width/3, 40);
-            _mySlider.Frame = new CoreGraphics.CGRect(View.Bounds.Width / 3, yPageOffset + 40, (View.Bounds.Width/3)*2, 40);
+            _lostPetButton.Frame = new CoreGraphics.CGRect(0, yPageOffset+40, View.Bounds.Width / 3, 40);
+            _foundPetButton.Frame = new CoreGraphics.CGRect(View.Bounds.Width / 3, yPageOffset + 40, View.Bounds.Width / 3, 40);
+            _sightingButton.Frame = new CoreGraphics.CGRect((View.Bounds.Width / 3) * 2, yPageOffset + 40, View.Bounds.Width / 3, 40);
+
+            _speedLabel.Frame = new CoreGraphics.CGRect(0, yPageOffset + 80, View.Bounds.Width/3, 40);
+            _mySlider.Frame = new CoreGraphics.CGRect(View.Bounds.Width / 3, yPageOffset + 80, (View.Bounds.Width/3)*2, 40);
         }
 
-        private void Sighting_Click(object sender, EventArgs e)
+        private async void Sighting_Click(object sender, EventArgs e)
         {
+            if (_selectedLocation == null)
+            {
+                return;
+            }
             _lostOverlay.Graphics.Clear();
             _bufferOverlay.Graphics.Clear();
             _bufferOverlay.Graphics.Add(new Graphic(_selectedLocation, new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.Diamond, Color.Orange, 20.0)));
+
+            await _mapView.SetViewpointCenterAsync(_selectedLocation.Extent.GetCenter());
+            CreateErrorDialog("Sighting submitted to GeoEvent");
         }
 
         private async void LostPet_ClickAsync(object sender, EventArgs e)
@@ -274,27 +286,40 @@ namespace HackathoughtsApp
             
             
             Geometry bufferGeometryGeodesic = GeometryEngine.BufferGeodetic(_lostLocation, _radius, LinearUnits.Miles, double.NaN, GeodeticCurveType.Geodesic);
-            /*
-            foreach (Polygon building in _buildingGeometry)
-            {
-                bufferGeometryGeodesic = GeometryEngine.Cut(bufferGeometryGeodesic, building.ToPolyline())[0];
-            }
-            */
-            Color customColor = Color.FromArgb(120, Color.Orange);
+            Color customColor = Color.FromArgb(60, Color.Orange);
             Graphic geodesicBufferGraphic = new Graphic(bufferGeometryGeodesic, new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, customColor, new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Black, 2.0)));
+
             Console.WriteLine(bufferGeometryGeodesic.ToJson());
+            Console.WriteLine(bufferGeometryGeodesic.ToString());
+            Console.WriteLine(bufferGeometryGeodesic.GeometryType.ToString());
+
+            Geometry bufferGeometryGeodesic2 = GeometryEngine.BufferGeodetic(_lostLocation, _radius*0.66, LinearUnits.Miles, double.NaN, GeodeticCurveType.Geodesic);
+            Geometry bufferGeometryGeodesic3 = GeometryEngine.BufferGeodetic(_lostLocation, _radius*0.33, LinearUnits.Miles, double.NaN, GeodeticCurveType.Geodesic);
+            Graphic geodesicBufferGraphic2 = new Graphic(bufferGeometryGeodesic2, new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, customColor, new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Black, 2.0)));
+
+            Graphic geodesicBufferGraphic3 = new Graphic(bufferGeometryGeodesic3, new SimpleFillSymbol(SimpleFillSymbolStyle.Solid, customColor, new SimpleLineSymbol(SimpleLineSymbolStyle.Solid, Color.Black, 2.0)));
+
             _bufferOverlay.Graphics.Add(geodesicBufferGraphic);
+            _bufferOverlay.Graphics.Add(geodesicBufferGraphic2);
+            _bufferOverlay.Graphics.Add(geodesicBufferGraphic3);
 
             await _mapView.SetViewpointAsync(new Viewpoint(geodesicBufferGraphic.Geometry.Extent));
+            CreateErrorDialog("Lost dog submitted to GeoEvent");
 
         }
 
         private async void FoundPet_ClickAsync(object sender, EventArgs e)
         {
+            if (_selectedLocation == null)
+            {
+                return;
+            }
             _lostOverlay.Graphics.Clear();
             _bufferOverlay.Graphics.Clear();
             _bufferOverlay.Graphics.Add(new Graphic(_selectedLocation, new SimpleMarkerSymbol(SimpleMarkerSymbolStyle.Diamond, Color.Green, 20.0)));
-            //await _mapView.SetViewpointAsync(new Viewpoint(_shelter.Extent));
+            await _mapView.SetViewpointCenterAsync(_selectedLocation.Extent.GetCenter());
+
+            CreateErrorDialog("Found dog submitted to GeoEvent.\nNotification sent to owner.");
         }
 
         private void MyMapView_GeoViewTapped(object sender, GeoViewInputEventArgs e)
@@ -310,6 +335,17 @@ namespace HackathoughtsApp
             // Update the map view with the view model's new map
             if (e.PropertyName == "Map" && _mapView != null)
                 _mapView.Map = _mapViewModel.Map;
+        }
+        private void CreateErrorDialog(string message)
+        {
+            // Create Alert.
+            UIAlertController okAlertController = UIAlertController.Create("Alert", message, UIAlertControllerStyle.Alert);
+
+            // Add Action.
+            okAlertController.AddAction(UIAlertAction.Create("OK", UIAlertActionStyle.Default, null));
+
+            // Present Alert.
+            PresentViewController(okAlertController, true, null);
         }
     }
 
