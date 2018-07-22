@@ -1,14 +1,14 @@
-﻿using UIKit;
-using Esri.ArcGISRuntime;
+﻿using Esri.ArcGISRuntime;
+using UIKit;
 
 namespace HackathoughtsApp
 {
     public class Application
     {
         // This is the main entry point of the application.
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
-            // Deployed applications must be licensed at the Lite level or greater. 
+            // Deployed applications must be licensed at the Lite level or greater.
             // See https://developers.arcgis.com/licensing for further details.
 
             // Initialize the ArcGIS Runtime before any components are created.
