@@ -29,8 +29,8 @@ namespace HackathoughtsApp
         private UIButton _bufferButton = new UIButton();
         private readonly UIToolbar _toolbar = new UIToolbar();
 
-        private UIButton _addFacilitiesButton = new UIButton(UIButtonType.Plain);
-        private UIButton _addBarrierButton = new UIButton(UIButtonType.Plain);
+        private UIButton _lostPetButton = new UIButton(UIButtonType.Plain);
+        private UIButton _foundPetButton = new UIButton(UIButtonType.Plain);
 
         private MapPoint _lostLocation;
         private GraphicsOverlay _bufferOverlay;
@@ -60,15 +60,15 @@ namespace HackathoughtsApp
             base.ViewDidLoad();
 
             // Add all of the buttons and link their click methods.
-            _addFacilitiesButton.SetTitle("Facilities", UIControlState.Normal);
-            _addFacilitiesButton.SetTitleColor(UIColor.Blue, UIControlState.Normal);
-            //_addFacilitiesButton.TouchUpInside += PlaceFacilites_Click;
+            _lostPetButton.SetTitle("Lost Pet", UIControlState.Normal);
+            _lostPetButton.SetTitleColor(UIColor.Blue, UIControlState.Normal);
+            _lostPetButton.TouchUpInside += LostPet_Click;
 
-            _addBarrierButton.SetTitle("Barrier", UIControlState.Normal);
-            _addBarrierButton.SetTitleColor(UIColor.Blue, UIControlState.Normal);
-            //_addBarrierButton.TouchUpInside += DrawBarrier_Click;
+            _foundPetButton.SetTitle("Found Pet", UIControlState.Normal);
+            _foundPetButton.SetTitleColor(UIColor.Blue, UIControlState.Normal);
+            _foundPetButton.TouchUpInside += FoundPet_Click;
 
-            View.AddSubviews(_mapView, _toolbar, _addBarrierButton, _addFacilitiesButton );
+            View.AddSubviews(_mapView, _toolbar, _foundPetButton, _lostPetButton );
             
             
         }
@@ -195,12 +195,22 @@ namespace HackathoughtsApp
             // Setup the visual frame for the Toolbar
             _toolbar.Frame = new CoreGraphics.CGRect(0, yPageOffset, View.Bounds.Width, 80);
 
-            _addFacilitiesButton.Frame = new CoreGraphics.CGRect(0, yPageOffset, View.Bounds.Width / 2, 40);
-            _addBarrierButton.Frame = new CoreGraphics.CGRect(View.Bounds.Width / 2, yPageOffset, View.Bounds.Width / 2, 40);
+            _lostPetButton.Frame = new CoreGraphics.CGRect(0, yPageOffset, View.Bounds.Width / 2, 40);
+            _foundPetButton.Frame = new CoreGraphics.CGRect(View.Bounds.Width / 2, yPageOffset, View.Bounds.Width / 2, 40);
 
         }
 
-        private async void MyMapView_GeoViewTapped(object sender, GeoViewInputEventArgs e)
+        private void LostPet_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void FoundPet_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void MyMapView_GeoViewTapped(object sender, GeoViewInputEventArgs e)
         {
             // Get the tapped point.
             _lostLocation = e.Location;
