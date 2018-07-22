@@ -16,6 +16,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Data.SqlClient;
+using System.IO;
+using System.Reflection;
 
 namespace HackathoughtsApp
 {
@@ -49,6 +51,8 @@ namespace HackathoughtsApp
         private DateTime _currentTime;
         private double _radius;
 
+        private MapPoint _shelter;
+
         public ViewController(IntPtr handle) : base(handle)
         {
             // Listen for changes on the view model
@@ -67,7 +71,7 @@ namespace HackathoughtsApp
 
             _foundPetButton.SetTitle("Found Pet", UIControlState.Normal);
             _foundPetButton.SetTitleColor(UIColor.Blue, UIControlState.Normal);
-            _foundPetButton.TouchUpInside += FoundPet_Click;
+            _foundPetButton.TouchUpInside += FoundPet_ClickAsync;
 
             View.AddSubviews(_mapView, _toolbar, _foundPetButton, _lostPetButton);
         }
@@ -102,13 +106,17 @@ namespace HackathoughtsApp
             _interestOverlay = new GraphicsOverlay();
             _lostOverlay = new GraphicsOverlay();
 
+            _shelter = new MapPoint(-117.203551, 34.060069, SpatialReferences.Wgs84);
+            var shelterPicture = new PictureMarkerSymbol(new Uri("http://static.arcgis.com/images/Symbols/SafetyHealth/Hospital.png"))
+            { Height=40, Width=40
+            };
+
+            _interestOverlay.Graphics.Add(new Graphic(_shelter, shelterPicture));
+
             _mapView.GraphicsOverlays.Add(_bufferOverlay);
             _mapView.GraphicsOverlays.Add(_barrierOverlay);
             _mapView.GraphicsOverlays.Add(_interestOverlay);
             _mapView.GraphicsOverlays.Add(_lostOverlay);
-
-            // location where user marks dog lost
-            //_lostLocation = new MapPoint();
 
             //get redlands boundary
 
@@ -132,6 +140,8 @@ namespace HackathoughtsApp
             _mapView.Map.OperationalLayers.Add(_redlandsBoundary);
             _mapView.Map.OperationalLayers.Add(_water);
             _mapView.Map.OperationalLayers.Add(_parks);
+
+
 
             _water.LoadAsync();
             CenterView();
@@ -164,7 +174,7 @@ namespace HackathoughtsApp
             // Add all of the query results to facilities as new Facility objects.
             _parkPolygons.AddRange(facilityResult.ToList().Select(feature => (Polygon)feature.Geometry));
 
-            Console.WriteLine(_parkPolygons.Count);
+            
             //await _mapView.SetViewpointAsync(new Viewpoint(_parkPolygons[0].Extent));
         }
 
@@ -195,6 +205,11 @@ namespace HackathoughtsApp
 
         private async void LostPet_ClickAsync(object sender, EventArgs e)
         {
+            if (_selectedLocation == null)
+            {
+                return;
+            }
+
             _lostLocation = _selectedLocation;
 
             _lostOverlay.Graphics.Clear();
@@ -215,8 +230,9 @@ namespace HackathoughtsApp
             */
         }
 
-        private void FoundPet_Click(object sender, EventArgs e)
+        private async void FoundPet_ClickAsync(object sender, EventArgs e)
         {
+            await _mapView.SetViewpointAsync(new Viewpoint(_shelter.Extent));
         }
 
         private void MyMapView_GeoViewTapped(object sender, GeoViewInputEventArgs e)
